@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
+	"github.com/albertomateo10/url-shortener/backend/internal/model"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -17,19 +19,28 @@ func NewCacheService(rdb *redis.Client) *CacheService {
 	return &CacheService{rdb: rdb}
 }
 
-func (s *CacheService) GetURL(ctx context.Context, shortCode string) (string, error) {
+func (s *CacheService) GetURL(ctx context.Context, shortCode string) (*model.URL, error) {
 	val, err := s.rdb.Get(ctx, "url:"+shortCode).Result()
 	if err == redis.Nil {
-		return "", nil
+		return nil, nil
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return val, nil
+
+	var u model.URL
+	if err := json.Unmarshal([]byte(val), &u); err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
-func (s *CacheService) SetURL(ctx context.Context, shortCode, originalURL string) error {
-	return s.rdb.Set(ctx, "url:"+shortCode, originalURL, cacheTTL).Err()
+func (s *CacheService) SetURL(ctx context.Context, u *model.URL) error {
+	data, err := json.Marshal(u)
+	if err != nil {
+		return err
+	}
+	return s.rdb.Set(ctx, "url:"+u.ShortCode, data, cacheTTL).Err()
 }
 
 func (s *CacheService) DeleteURL(ctx context.Context, shortCode string) error {

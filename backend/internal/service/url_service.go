@@ -48,8 +48,7 @@ func (s *URLService) CreateURL(ctx context.Context, rawURL string) (*model.Creat
 		return nil, fmt.Errorf("failed to generate unique short code after %d attempts", maxCollisionRetries)
 	}
 
-	// Pre-populate cache
-	_ = s.cache.SetURL(ctx, u.ShortCode, u.OriginalURL)
+	_ = s.cache.SetURL(ctx, u)
 
 	return &model.CreateURLResponse{
 		ID:          u.ID,
@@ -110,19 +109,16 @@ func (s *URLService) DeleteURL(ctx context.Context, id int64) error {
 		return err
 	}
 
-	// Invalidate cache
 	_ = s.cache.DeleteURL(ctx, u.ShortCode)
 	return nil
 }
 
 func (s *URLService) ResolveShortCode(ctx context.Context, shortCode string) (*model.URL, error) {
-	// // Try cache first
-	// cached, err := s.cache.GetURL(ctx, shortCode)
-	// if err == nil && cached != "" {
-	// 	return &model.URL{ShortCode: shortCode, OriginalURL: cached}, nil
-	// }
+	cachedURL, err := s.cache.GetURL(ctx, shortCode)
+	if err == nil && cachedURL != nil {
+		return cachedURL, nil
+	}
 
-	// Cache miss — query DB
 	u, err := s.repo.GetByShortCode(ctx, shortCode)
 	if err != nil {
 		return nil, err
@@ -131,8 +127,7 @@ func (s *URLService) ResolveShortCode(ctx context.Context, shortCode string) (*m
 		return nil, nil
 	}
 
-	// Populate cache
-	_ = s.cache.SetURL(ctx, u.ShortCode, u.OriginalURL)
+	_ = s.cache.SetURL(ctx, u)
 
 	return u, nil
 }
