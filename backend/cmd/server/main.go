@@ -65,9 +65,13 @@ func main() {
 	analyticsSvc := service.NewAnalyticsService(clickRepo, urlRepo)
 	clickLogger := service.NewClickLogger(clickRepo, urlRepo)
 
+	// Geo service (optional — only active when GEODB_PATH is set)
+	geoSvc := service.NewGeoService(cfg.GeoDBPath)
+	defer geoSvc.Close()
+
 	// Handlers
 	urlHandler := handler.NewURLHandler(urlSvc)
-	redirectHandler := handler.NewRedirectHandler(urlSvc, clickLogger)
+	redirectHandler := handler.NewRedirectHandler(urlSvc, clickLogger, geoSvc)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc)
 
 	// Router

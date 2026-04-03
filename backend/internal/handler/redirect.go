@@ -14,10 +14,11 @@ import (
 type RedirectHandler struct {
 	urlSvc      *service.URLService
 	clickLogger *service.ClickLogger
+	geoSvc      *service.GeoService
 }
 
-func NewRedirectHandler(urlSvc *service.URLService, clickLogger *service.ClickLogger) *RedirectHandler {
-	return &RedirectHandler{urlSvc: urlSvc, clickLogger: clickLogger}
+func NewRedirectHandler(urlSvc *service.URLService, clickLogger *service.ClickLogger, geoSvc *service.GeoService) *RedirectHandler {
+	return &RedirectHandler{urlSvc: urlSvc, clickLogger: clickLogger, geoSvc: geoSvc}
 }
 
 func (h *RedirectHandler) Redirect(w http.ResponseWriter, r *http.Request) {
@@ -34,12 +35,14 @@ func (h *RedirectHandler) Redirect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Log click asynchronously
+	ip := extractIP(r)
 	h.clickLogger.Log(&model.ClickEvent{
 		URLID:     u.ID,
 		ClickedAt: time.Now(),
-		IPAddress: extractIP(r),
+		IPAddress: ip,
 		UserAgent: r.UserAgent(),
 		Referer:   r.Referer(),
+		Country:   h.geoSvc.LookupCountry(ip),
 	})
 
 	http.Redirect(w, r, u.OriginalURL, http.StatusFound)
